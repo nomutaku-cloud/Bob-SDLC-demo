@@ -1,0 +1,16 @@
+import React from 'react';
+
+interface LoadingSpinnerProps {
+  message?: string;
+}
+
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
+  message = 'Loading finance data...',
+}) => {
+  return (
+    <div className="loading-container" data-testid="loading-spinner">
+      <div className="spinner"></div>
+      <p className="loading-text">{message}</p>
+    </div>
+  );
+};
