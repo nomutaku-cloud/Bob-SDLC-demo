@@ -6,6 +6,7 @@ import { ErrorMessage } from '../common/ErrorMessage';
 import { TimeRangeFilter } from './TimeRangeFilter';
 import { CompanySummaryCard } from './CompanySummaryCard';
 import { CompanySelector } from './CompanySelector';
+import { CustomCompanyPanel } from './CustomCompanyPanel';
 import { ComparisonLineChart } from '../charts/ComparisonLineChart';
 import { useFinanceData } from '../../hooks/useFinanceData';
 
@@ -115,6 +116,9 @@ export const DashboardPage: React.FC = () => {
             </section>
           </>
         )}
+
+        {/* ユーザー選択企業の追加チャート（既存ダッシュボードとは独立） */}
+        <CustomCompanyPanel range={selectedRange} />
       </main>
     </div>
   );

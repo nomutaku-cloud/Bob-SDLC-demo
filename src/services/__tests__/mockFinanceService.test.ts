@@ -38,3 +38,24 @@ describe('MockFinanceService', () => {
     expect(comparison.chartPoints[0]).toHaveProperty('MSFT');
   });
 });
+
+describe('MockFinanceService.validateSymbol', () => {
+  const service = new MockFinanceService(0);
+
+  it('対応企業の銘柄は大文字小文字を問わず有効と判定されること', async () => {
+    const result = await service.validateSymbol(' googl ');
+    expect(result.valid).toBe(true);
+    expect(result.symbol).toBe('GOOGL');
+    expect(result.company?.name).toBe('Alphabet Inc.');
+  });
+
+  it('形式不正な銘柄は format として拒否されること', async () => {
+    const result = await service.validateSymbol('12$');
+    expect(result).toMatchObject({ valid: false, reason: 'format' });
+  });
+
+  it('未登録の銘柄は not_found として拒否されること', async () => {
+    const result = await service.validateSymbol('ZZZZ');
+    expect(result).toMatchObject({ valid: false, symbol: 'ZZZZ', reason: 'not_found' });
+  });
+});

@@ -5,10 +5,12 @@ import {
   MarketQuote,
   CompanyHistory,
   ComparisonChartPoint,
+  SymbolValidationResult,
 } from '../types/finance';
 import { DEFAULT_COMPANIES, getCompanyBySymbol } from './config/companies';
 import { generateMockQuotes, generateMockHistory } from './mock/mockData';
 import { normalizeToRelativePerformance, buildComparisonChartData } from './adapters/financeAdapter';
+import { normalizeTicker, isValidTickerFormat } from './symbolValidation';
 
 export class MockFinanceService implements IFinanceService {
   private latencyMs: number;
@@ -21,6 +23,22 @@ export class MockFinanceService implements IFinanceService {
     if (this.latencyMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, this.latencyMs));
     }
+  }
+
+  /**
+   * モックでは対応企業リスト（ALL_SUPPORTED_COMPANIES）に含まれる銘柄のみ有効とする
+   */
+  async validateSymbol(symbol: string): Promise<SymbolValidationResult> {
+    await this.delay();
+    const sym = normalizeTicker(symbol);
+    if (!isValidTickerFormat(sym)) {
+      return { valid: false, symbol: sym, reason: 'format' };
+    }
+    const company = getCompanyBySymbol(sym);
+    if (!company) {
+      return { valid: false, symbol: sym, reason: 'not_found' };
+    }
+    return { valid: true, symbol: sym, company };
   }
 
   async getTrackedCompanies(): Promise<CompanyInfo[]> {
