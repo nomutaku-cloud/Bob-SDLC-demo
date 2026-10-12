@@ -42,7 +42,17 @@ export interface ComparisonChartPoint {
   [symbol: string]: number | string; // 例: { dateLabel: '10/24', IBM: 215.4, MSFT: 428.1, ... }
 }
 
+export type SymbolValidationReason = 'format' | 'not_found' | 'unsupported';
+
+export interface SymbolValidationResult {
+  valid: boolean;
+  symbol: string;
+  company?: CompanyInfo;
+  reason?: SymbolValidationReason;
+}
+
 export interface IFinanceService {
+  validateSymbol(symbol: string): Promise<SymbolValidationResult>;
   getTrackedCompanies(): Promise<CompanyInfo[]>;
   getQuote(symbol: string): Promise<MarketQuote>;
   getQuotes(symbols: string[]): Promise<MarketQuote[]>;

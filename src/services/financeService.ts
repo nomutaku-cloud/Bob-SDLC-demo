@@ -14,6 +14,7 @@ export function getFinanceService(): IFinanceService {
 }
 
 export const financeService = {
+  validateSymbol: (symbol: string) => activeService.validateSymbol(symbol),
   getTrackedCompanies: () => activeService.getTrackedCompanies(),
   getQuote: (symbol: string) => activeService.getQuote(symbol),
   getQuotes: (symbols: string[]) => activeService.getQuotes(symbols),

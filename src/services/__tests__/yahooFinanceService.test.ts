@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { YahooFinanceService } from '../yahooFinanceService';
 
 describe('YahooFinanceService', () => {
@@ -54,5 +54,70 @@ describe('YahooFinanceService', () => {
     const secondDuration = performance.now() - startCached;
 
     expect(secondDuration).toBeLessThanOrEqual(firstDuration + 10);
+  });
+});
+
+describe('YahooFinanceService.validateSymbol', () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it('形式不正な銘柄はAPIを呼ばずに format として拒否されること', async () => {
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    const service = new YahooFinanceService();
+    const result = await service.validateSymbol('!!');
+    expect(result).toMatchObject({ valid: false, reason: 'format' });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('対応企業リストの銘柄はAPIを呼ばずに有効と判定されること', async () => {
+    const fetchSpy = vi.fn();
+    globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    const service = new YahooFinanceService();
+    const result = await service.validateSymbol('aapl');
+    expect(result.valid).toBe(true);
+    expect(result.company?.symbol).toBe('AAPL');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('APIが銘柄を見つけられない場合はモックにフォールバックせず not_found となること', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        chart: { result: null, error: { code: 'Not Found', description: 'No data found' } },
+      }),
+    }) as unknown as typeof fetch;
+    const service = new YahooFinanceService();
+    const result = await service.validateSymbol('ZZZZ');
+    expect(result).toMatchObject({ valid: false, symbol: 'ZZZZ', reason: 'not_found' });
+  });
+
+  it('APIがデータを返す未登録銘柄は有効と判定されること', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        chart: {
+          result: [{ meta: { symbol: 'NVDA', currency: 'USD' }, indicators: { quote: [] } }],
+          error: null,
+        },
+      }),
+    }) as unknown as typeof fetch;
+    const service = new YahooFinanceService();
+    const result = await service.validateSymbol('NVDA');
+    expect(result.valid).toBe(true);
+    expect(result.company?.symbol).toBe('NVDA');
+  });
+
+  it('ネットワークに到達できない未登録銘柄は unsupported となること', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockRejectedValue(new TypeError('Failed to fetch')) as unknown as typeof fetch;
+    const service = new YahooFinanceService();
+    const result = await service.validateSymbol('NVDA');
+    expect(result).toMatchObject({ valid: false, reason: 'unsupported' });
   });
 });

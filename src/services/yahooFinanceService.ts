@@ -5,10 +5,13 @@ import {
   MarketQuote,
   CompanyHistory,
   ComparisonChartPoint,
+  SymbolValidationResult,
 } from '../types/finance';
 import { YahooFinanceClient, YahooClientConfig } from './api/yahooFinanceClient';
 import { MockFinanceService } from './mockFinanceService';
 import { companyRegistry } from './companyRegistry';
+import { getCompanyBySymbol } from './config/companies';
+import { normalizeTicker, isValidTickerFormat } from './symbolValidation';
 import {
   normalizeYahooChartResult,
   normalizeYahooChartMetaToQuote,
@@ -33,6 +36,34 @@ export class YahooFinanceService implements IFinanceService {
     this.client = new YahooFinanceClient(config);
     this.fallbackService = new MockFinanceService(0);
     this.cacheTtlMs = config?.cacheTtlMs || 60_000; // 1分間キャッシュ
+  }
+
+  /**
+   * 銘柄コードの厳密な検証（モックへのフォールバックは行わない）
+   * - 対応企業リストに含まれる銘柄は常に有効
+   * - それ以外は Chart API で存在確認。APIに到達できない場合は検証不能のため「未対応」とする
+   */
+  async validateSymbol(symbol: string): Promise<SymbolValidationResult> {
+    const sym = normalizeTicker(symbol);
+    if (!isValidTickerFormat(sym)) {
+      return { valid: false, symbol: sym, reason: 'format' };
+    }
+    if (getCompanyBySymbol(sym)) {
+      return { valid: true, symbol: sym, company: companyRegistry.getCompany(sym) };
+    }
+
+    try {
+      const res = await this.client.fetchChart(sym, '1d');
+      if (res.chart.result?.[0]?.meta) {
+        return { valid: true, symbol: sym, company: companyRegistry.getCompany(sym) };
+      }
+      return { valid: false, symbol: sym, reason: 'not_found' };
+    } catch (err) {
+      const name = (err as { name?: string } | null)?.name;
+      const isNetworkError =
+        err instanceof TypeError || name === 'TimeoutError' || name === 'AbortError';
+      return { valid: false, symbol: sym, reason: isNetworkError ? 'unsupported' : 'not_found' };
+    }
   }
 
   async getTrackedCompanies(): Promise<CompanyInfo[]> {
